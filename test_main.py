@@ -108,3 +108,60 @@ def test_streak_ignores_future_checkins():
 def test_streak_unknown_habit_404():
     r = client.get("/habits/99999/streak")
     assert r.status_code == 404
+
+
+@pytest.mark.parametrize("name", ["", "   ", "\t\n"])
+def test_create_habit_rejects_blank_name(name):
+    r = client.post("/habits", json={"name": name})
+    assert r.status_code == 422
+    assert "habit name must not be empty" in r.text
+
+
+def test_create_habit_strips_name():
+    r = client.post("/habits", json={"name": "  Walk  "})
+    assert r.status_code == 200
+    assert r.json()["name"] == "Walk"
+
+
+def test_create_habit_missing_name_422():
+    r = client.post("/habits", json={})
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "day,message",
+    [
+        ("", "YYYY-MM-DD"),
+        ("yesterday", "YYYY-MM-DD"),
+        ("22-09-2026", "YYYY-MM-DD"),
+        ("2026-9-22", "YYYY-MM-DD"),
+        ("20260922", "YYYY-MM-DD"),
+        ("2026-09-22T10:00:00", "YYYY-MM-DD"),
+        (" 2026-09-22", "YYYY-MM-DD"),
+        ("٢٠٢٦-٠٩-٢٢", "YYYY-MM-DD"),
+        ("2026-13-01", "not a valid calendar date"),
+        ("2026-02-30", "not a valid calendar date"),
+    ],
+)
+def test_checkin_rejects_malformed_day(day, message):
+    hid = client.post("/habits", json={"name": "Meditate"}).json()["id"]
+    r = client.post(f"/habits/{hid}/checkin", json={"day": day})
+    assert r.status_code == 422
+    assert message in r.text
+    assert client.get(f"/habits/{hid}/checkins").json() == []
+
+
+def test_checkin_accepts_leap_day():
+    hid = client.post("/habits", json={"name": "Journal"}).json()["id"]
+    r = client.post(f"/habits/{hid}/checkin", json={"day": "2028-02-29"})
+    assert r.status_code == 200
+
+
+def test_streak_cannot_be_fooled_by_a_compact_date():
+    # CodeRabbit (PR #1): "20260302" used to be stored as-is and never matched the
+    # ISO day in the streak. Validation now rejects it, so it cannot silently not count.
+    hid = _new_habit()
+    assert client.post(f"/habits/{hid}/checkin", json={"day": "20260302"}).status_code == 422
+    assert client.post(f"/habits/{hid}/checkin", json={"day": "1772409600"}).status_code == 422
+    client.post(f"/habits/{hid}/checkin", json={"day": TODAY.isoformat()})
+    assert client.get(f"/habits/{hid}/streak").json()["streak"] == 1
