@@ -20,3 +20,16 @@ uvicorn main:app --reload   # http://localhost:8000  (docs at /docs)
 - `main.py` — the app
 - `test_main.py` — pytest suite
 - `docs/TASKS.md` — the two features to implement
+
+## Guardrails
+Install the dev tools once: `pip install -r requirements-dev.txt`.
+
+| Command | What it catches |
+| --- | --- |
+| `black --check --diff .` | Code that is not formatted the agreed way (line length 100) |
+| `ruff check .` | Unused imports, undefined names, import order, likely bugs (bugbear), outdated syntax |
+| `pytest` | Behavior regressions; any failing test exits non-zero |
+
+`./check.sh` (Git Bash / macOS / Linux) or `.\check.ps1` (PowerShell) runs all three and stops
+at the first failure. GitHub Actions (`.github/workflows/ci.yml`) runs the same three steps on
+every push to `main` and every pull request, so a failing test fails the build.
