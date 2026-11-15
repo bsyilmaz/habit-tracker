@@ -6,7 +6,7 @@ on branches, open PRs, and run an AI reviewer.
 ## Setup
 ```bash
 pip install -r requirements.txt
-pytest                      # 3 tests should pass
+pytest                      # 29 tests should pass
 uvicorn main:app --reload   # http://localhost:8000  (docs at /docs)
 ```
 
@@ -15,6 +15,9 @@ uvicorn main:app --reload   # http://localhost:8000  (docs at /docs)
 - `GET /habits`
 - `POST /habits/{id}/checkin` `{ "day": "2026-09-22" }`
 - `GET /habits/{id}/checkins`
+- `GET /habits/{id}/streak`: consecutive days with a check-in, ending today (PR #1)
+
+`name` must not be blank and `day` must be a real `YYYY-MM-DD` date; otherwise 422 (PR #2).
 
 ## Files
 - `main.py` — the app
