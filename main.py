@@ -99,16 +99,14 @@ def today() -> date:
 def get_streak(habit_id: int):
     """Count consecutive days with a check-in, ending today.
 
-    If today has no check-in the streak is 0. Duplicate check-ins on the same
-    day count once.
+    "Today" is the server's local date. If today has no check-in the streak is 0.
+    Duplicate check-ins on the same day count once (the set below removes them).
     """
     with closing(get_db()) as conn:
         habit = conn.execute("SELECT id FROM habits WHERE id = ?", (habit_id,)).fetchone()
         if habit is None:
             raise HTTPException(status_code=404, detail="unknown habit")
-        rows = conn.execute(
-            "SELECT DISTINCT day FROM checkins WHERE habit_id = ?", (habit_id,)
-        ).fetchall()
+        rows = conn.execute("SELECT day FROM checkins WHERE habit_id = ?", (habit_id,)).fetchall()
     days = {r["day"] for r in rows}
     streak = 0
     current = today()

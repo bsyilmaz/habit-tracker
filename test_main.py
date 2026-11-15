@@ -1,7 +1,9 @@
 from datetime import date, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 
+import main
 from main import app
 
 client = TestClient(app)
@@ -29,8 +31,17 @@ def test_checkin_unknown_habit_404():
     assert r.status_code == 404
 
 
+# Streak tests pin "today" so they cannot flake when the run crosses midnight.
+TODAY = date(2026, 3, 2)
+
+
+@pytest.fixture(autouse=True)
+def fixed_today(monkeypatch):
+    monkeypatch.setattr(main, "today", lambda: TODAY)
+
+
 def _days_ago(n: int) -> str:
-    return (date.today() - timedelta(days=n)).isoformat()
+    return (TODAY - timedelta(days=n)).isoformat()
 
 
 def _new_habit(name: str = "Streak habit") -> int:
@@ -77,6 +88,21 @@ def test_streak_ignores_other_habits():
     other = _new_habit("Other")
     client.post(f"/habits/{other}/checkin", json={"day": _days_ago(0)})
     assert client.get(f"/habits/{hid}/streak").json()["streak"] == 0
+
+
+def test_streak_crosses_month_boundary():
+    # TODAY is 2026-03-02, so this run covers 2026-02-27 .. 2026-03-02
+    hid = _new_habit()
+    for day in ("2026-02-27", "2026-02-28", "2026-03-01", "2026-03-02"):
+        client.post(f"/habits/{hid}/checkin", json={"day": day})
+    assert client.get(f"/habits/{hid}/streak").json()["streak"] == 4
+
+
+def test_streak_ignores_future_checkins():
+    hid = _new_habit()
+    for n in (-1, 0):
+        client.post(f"/habits/{hid}/checkin", json={"day": _days_ago(n)})
+    assert client.get(f"/habits/{hid}/streak").json()["streak"] == 1
 
 
 def test_streak_unknown_habit_404():
