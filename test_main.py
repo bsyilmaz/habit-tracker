@@ -55,6 +55,8 @@ def test_create_habit_missing_name_422():
         ("2026-9-22", "YYYY-MM-DD"),
         ("20260922", "YYYY-MM-DD"),
         ("2026-09-22T10:00:00", "YYYY-MM-DD"),
+        (" 2026-09-22", "YYYY-MM-DD"),
+        ("٢٠٢٦-٠٩-٢٢", "YYYY-MM-DD"),
         ("2026-13-01", "not a valid calendar date"),
         ("2026-02-30", "not a valid calendar date"),
     ],

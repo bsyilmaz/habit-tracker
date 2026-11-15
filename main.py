@@ -48,7 +48,8 @@ def init_db() -> None:
 init_db()
 
 
-ISO_DAY_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+# [0-9], not \d: \d also matches non-ASCII digits such as "٢", which fromisoformat rejects.
+ISO_DAY_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 
 class HabitIn(BaseModel):
