@@ -10,12 +10,14 @@ Test:
     pytest
 """
 
+import re
 import sqlite3
 from contextlib import closing
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 DB_PATH = Path(__file__).parent / "habits.db"
 
@@ -46,12 +48,36 @@ def init_db() -> None:
 init_db()
 
 
+# [0-9], not \d: \d also matches non-ASCII digits such as "٢", which fromisoformat rejects.
+ISO_DAY_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
 class HabitIn(BaseModel):
     name: str
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("habit name must not be empty")
+        return v
 
 
 class CheckinIn(BaseModel):
     day: str  # ISO date, e.g. "2026-09-22"
+
+    @field_validator("day")
+    @classmethod
+    def day_is_iso_date(cls, v: str) -> str:
+        # Require exactly YYYY-MM-DD so stored days sort and compare as strings.
+        if not ISO_DAY_RE.fullmatch(v):
+            raise ValueError("day must be a date in YYYY-MM-DD format, e.g. 2026-09-22")
+        try:
+            date.fromisoformat(v)
+        except ValueError:
+            raise ValueError(f"day {v!r} is not a valid calendar date") from None
+        return v
 
 
 @app.post("/habits")
